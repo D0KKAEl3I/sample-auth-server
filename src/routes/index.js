@@ -6,7 +6,7 @@ const authJWT = require('../middlewares/auth-jwt');
 
 const router = express.Router();
 router.use('/login', loginRouter)
-router.use('/verify', authJWT, verifyRouter)
-router.use('/refreshToken', authJWT, refreshTokenRouter)
+router.use('/verify', verifyRouter)
+router.use('/refresh-token', refreshTokenRouter)
 
 module.exports = router

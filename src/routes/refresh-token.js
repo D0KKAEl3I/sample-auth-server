@@ -1,28 +1,32 @@
+const { format } = require('date-fns');
+const users = require('../data/user');
 const jwtUtils = require('../jwt-util');
-const jwt = require('jsonwebtoken');
+const redisClient = require('../redis');
 
 const refresh = async (req, res) => {
-    const accessToken = req.headers.authorization.split('Bearer ')[1];
-    const refreshToken = req.body?.refreshToken;
+    const refreshToken = req.headers.authorization?.split('Bearer ')[1];
     if (!refreshToken) {
-        res.status(401).send();
-        return;
+        return res.status(401).json(null);
+    }
+    const refreshResult = await jwtUtils.refreshVerify(refreshToken);
+    if (!refreshResult.ok) {
+        redisClient.del(refreshToken);
+        return res.status(401).json(null);
     }
 
-    const decoded = jwt.decode(accessToken);
-    if (decoded === null) {
-        res.status(401).send();
+    const userId = refreshResult.userId
+    const user = users.find((user) => user.id === userId);
+    if (!user) {
+        return res.status(409).json(null);
     }
 
-    const refreshResult = jwtUtils.refreshVerify(refreshToken, decoded.id);
-    if (refreshResult.ok === false) {
-        res.status(401).send();
-    }
-
+    redisClient.del(refreshToken);
     const newAccessToken = jwtUtils.sign(user);
     const newRefreshToken = jwtUtils.refresh();
+    redisClient.set(newRefreshToken, userId);
 
-    res.status(200).send({
+
+    return res.status(200).json({
         accessToken: newAccessToken,
         refreshToken: newRefreshToken,
     });

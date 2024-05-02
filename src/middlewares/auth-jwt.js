@@ -11,7 +11,7 @@ const authJWT = (req, res, next) => {
             }
             next();
         } else { // 검증에 실패하거나 토큰이 만료되었다면 클라이언트에게 메세지를 담아서 응답합니다.
-            res.status(401).send(result.message);
+            res.status(401).json(result.message);
         }
     }
 };

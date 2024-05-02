@@ -2,6 +2,8 @@ const express = require('express');
 const users = require('../data/user');
 const jwtUtils = require('../jwt-util');
 const redisClient = require('../redis');
+const { format } = require('date-fns');
+
 
 const loginRouter = express.Router();
 
@@ -14,14 +16,15 @@ loginRouter.post('/', async (req, res) => {
         const { password, ...userData } = foundUser;
         const accessToken = jwtUtils.sign(userData);
         const refreshToken = jwtUtils.refresh();
-        redisClient.set(userData.id, refreshToken);
+        redisClient.set(refreshToken, userData.id);
+        const time = new Date();
+        console.info(`[INFO](${format(time, "yyyy/MM/dd HH:mm:SS")}) User ${userData.id} logged in. got ${refreshToken}`);
         res.status(200).json({
-            user: userData,
             accessToken,
             refreshToken,
         });
     } else {
-        res.status(401).send();
+        res.sendStatus(401)
     }
 });
 

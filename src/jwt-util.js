@@ -1,4 +1,3 @@
-const { promisify } = require('util');
 const jwt = require('jsonwebtoken');
 const redisClient = require('./redis');
 require('dotenv').config();
@@ -6,9 +5,11 @@ require('dotenv').config();
 const secret = process.env.TOKEN_SECRET;
 const jwtUtils = {
     sign: (user) => { // access token 발급
-        const payload = { // access token에 들어갈 payload
-            id: user.id,
-            username: user.username,
+        const payload = {
+            user: { // access token에 들어갈 payload
+                id: user.id,
+                username: user.username,
+            }
         };
 
         return jwt.sign(payload, secret, { // secret으로 sign하여 발급하고 return
@@ -23,7 +24,6 @@ const jwtUtils = {
             return {
                 ok: true,
                 id: decoded.id,
-                role: decoded.role,
             };
         } catch (err) {
             return {
@@ -38,25 +38,30 @@ const jwtUtils = {
             expiresIn: process.env.REFRESH_TOKEN_DURATION,
         });
     },
-    refreshVerify: async (token, userId) => { // refresh token 검증
-        /* redis 모듈은 기본적으로 promise를 반환하지 않으므로,
-           promisify를 이용하여 promise를 반환하게 해줍니다.*/
-        const getAsync = promisify(redisClient.get).bind(redisClient);
-
+    refreshVerify: async (token) => { // refresh token 검증
         try {
-            const data = await getAsync(userId); // refresh token 가져오기
-            if (token === data) {
-                try {
-                    jwt.verify(token, secret);
-                    return true;
-                } catch (err) {
-                    return false;
-                }
-            } else {
-                return false;
+            const data = await redisClient.v4.get(token);
+            if (!data) {
+                return {
+                    ok: false
+                };
+            }
+            try {
+                const verified = jwt.verify(token, secret)
+                return {
+                    ok: true,
+                    userId: data
+                };
+            } catch (err) {
+                redisClient.del(token);
+                return {
+                    ok: false
+                };
             }
         } catch (err) {
-            return false;
+            return {
+                ok: false
+            };
         }
     },
 };
